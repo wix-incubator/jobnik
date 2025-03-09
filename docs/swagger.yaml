@@ -1,0 +1,93 @@
+basePath: /api
+info:
+  contact: {}
+  description: This is an extended API with additional endpoints, using Gin and Swagger
+    for documentation.
+  title: Sample API with Gin and Swagger
+  version: "1.0"
+paths:
+  /api/cube/{num}:
+    get:
+      description: Returns the cube of a number
+      parameters:
+      - description: Number
+        in: path
+        name: num
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Calculate cube
+  /api/doofel/{input_string}:
+    get:
+      description: Returns "foofel" if input is "doofel"
+      parameters:
+      - description: Input string
+        in: path
+        name: input_string
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Doofel check
+  /api/fibonacci/{n}:
+    get:
+      description: Returns the Fibonacci sequence up to n numbers
+      parameters:
+      - description: Length of sequence
+        in: path
+        name: "n"
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Calculate Fibonacci sequence
+  /api/foofel/{input_string}:
+    get:
+      description: Returns "doofel" if input is "foofel"
+      parameters:
+      - description: Input string
+        in: path
+        name: input_string
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Foofel check
+  /api/square/{num}:
+    get:
+      description: Returns the square of a number
+      parameters:
+      - description: Number
+        in: path
+        name: num
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Calculate square
+swagger: "2.0"

@@ -1,0 +1,140 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "This is an extended API with additional endpoints, using Gin and Swagger for documentation.",
+        "title": "Sample API with Gin and Swagger",
+        "contact": {},
+        "version": "1.0"
+    },
+    "basePath": "/api",
+    "paths": {
+        "/api/cube/{num}": {
+            "get": {
+                "description": "Returns the cube of a number",
+                "summary": "Calculate cube",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Number",
+                        "name": "num",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/doofel/{input_string}": {
+            "get": {
+                "description": "Returns \"foofel\" if input is \"doofel\"",
+                "summary": "Doofel check",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Input string",
+                        "name": "input_string",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/fibonacci/{n}": {
+            "get": {
+                "description": "Returns the Fibonacci sequence up to n numbers",
+                "summary": "Calculate Fibonacci sequence",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Length of sequence",
+                        "name": "n",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/foofel/{input_string}": {
+            "get": {
+                "description": "Returns \"doofel\" if input is \"foofel\"",
+                "summary": "Foofel check",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Input string",
+                        "name": "input_string",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/square/{num}": {
+            "get": {
+                "description": "Returns the square of a number",
+                "summary": "Calculate square",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Number",
+                        "name": "num",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,41 @@
+replicaCount: 1
+
+image:
+  repository: docker.io/pavelzagalsky/jobnik
+  tag: latest
+  pullPolicy: Always
+
+namespace: default
+
+serviceAccount:
+  name: default
+
+rbac:
+  enabled: true
+
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "64m"
+  limits:
+    memory: "256Mi"
+    cpu: "128m"
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+env:
+  SERVICE_NAME: jobnik
+  PORT: "8080"
+
+probes:
+  liveness:
+    path: /healthz
+    initialDelaySeconds: 10
+    periodSeconds: 10
+  readiness:
+    path: /readiness
+    initialDelaySeconds: 5
+    periodSeconds: 10
