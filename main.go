@@ -15,6 +15,7 @@ import (
 	"github.com/gin-gonic/gin"
 	swaggerfiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -24,9 +25,12 @@ import (
 
 // TriggerJobRequest defines the expected JSON body for triggering a job.
 // swagger:parameters triggerJobRequest
+// TriggerJobRequest defines the expected JSON body for triggering a job.
 type TriggerJobRequest struct {
-	JobName   string `json:"jobName" example:"example-job"`
-	Namespace string `json:"namespace" example:"default"`
+	JobName   string            `json:"jobName" example:"example-job"`
+	Namespace string            `json:"namespace" example:"default"`
+	EnvVars   map[string]string `json:"envVars,omitempty"` // New field to accept env variables
+	Args      []string          `json:"args,omitempty"`    // New field for command arguments
 }
 
 // TriggerJobResponse defines the JSON response after triggering a job.
@@ -93,61 +97,62 @@ func generateUniqueJobName(jobName string) string {
 }
 
 // monitorJobCompletion continuously checks the job status until it succeeds, then deletes the job.
-func performTriggerJob(jobName, namespace string) (string, error) {
-	jobClient := clientset.BatchV1().Jobs(namespace)
-	log.Printf("Fetching job: %s from namespace: %s", jobName, namespace)
-	job, err := jobClient.Get(context.Background(), jobName, metav1.GetOptions{})
+func performTriggerJob(request TriggerJobRequest) (string, error) {
+	jobClient := clientset.BatchV1().Jobs(request.Namespace)
+	log.Printf("Fetching job: %s from namespace: %s", request.JobName, request.Namespace)
+
+	// Fetch the base job template
+	job, err := jobClient.Get(context.Background(), request.JobName, metav1.GetOptions{})
 	if err != nil {
 		log.Printf("Error reading job: %v", err)
 		return "", fmt.Errorf("error reading job: %v", err)
 	}
 
-	newJobName := generateUniqueJobName(jobName)
+	newJobName := generateUniqueJobName(request.JobName)
 	log.Printf("Generated unique job name: %s", newJobName)
 
 	// Reset metadata
-	job.ResourceVersion = "" // Clear resource version to allow creation
+	job.ResourceVersion = ""
 	job.Name = newJobName
 	job.ObjectMeta.UID = ""
 	job.ObjectMeta.CreationTimestamp = metav1.Time{}
 	job.ObjectMeta.ManagedFields = nil
-
-	// Reset job labels to avoid conflicts
-	job.ObjectMeta.Labels = map[string]string{
-		"job-name": newJobName,
-	}
-
-	// Ensure template labels match the job name
-	job.Spec.Template.ObjectMeta.Labels = map[string]string{
-		"job-name": newJobName,
-	}
-
-	// Remove the immutable selector
+	job.ObjectMeta.Labels = map[string]string{"job-name": newJobName}
+	job.Spec.Template.ObjectMeta.Labels = map[string]string{"job-name": newJobName}
 	job.Spec.Selector = nil
-
-	// Reset template metadata
 	job.Spec.Template.ObjectMeta.Name = newJobName
 	job.Spec.Template.ObjectMeta.GenerateName = ""
 
+	// Add environment variables to job container
+	if len(request.EnvVars) > 0 {
+		envVars := []corev1.EnvVar{}
+		for key, value := range request.EnvVars {
+			envVars = append(envVars, corev1.EnvVar{Name: key, Value: value})
+		}
+		job.Spec.Template.Spec.Containers[0].Env = envVars
+	}
+
+	// Set custom command arguments
+	if len(request.Args) > 0 {
+		job.Spec.Template.Spec.Containers[0].Args = request.Args
+	}
+
+	// Create the new job
 	log.Println("Attempting job creation with retry...")
-	err = retry.OnError(
-		retry.DefaultBackoff,
-		func(err error) bool { return true },
-		func() error {
-			_, err := jobClient.Create(context.Background(), job, metav1.CreateOptions{})
-			if err != nil {
-				log.Printf("Job creation failed: %v", err)
-			}
-			return err
-		},
-	)
+	err = retry.OnError(retry.DefaultBackoff, func(err error) bool { return true }, func() error {
+		_, err := jobClient.Create(context.Background(), job, metav1.CreateOptions{})
+		if err != nil {
+			log.Printf("Job creation failed: %v", err)
+		}
+		return err
+	})
 	if err != nil {
 		log.Printf("Error creating job after retries: %v", err)
 		return "", fmt.Errorf("error creating job after retries: %v", err)
 	}
 
 	log.Printf("Job '%s' triggered successfully.", newJobName)
-	go monitorJobCompletion(namespace, newJobName)
+	go monitorJobCompletion(request.Namespace, newJobName)
 	return newJobName, nil
 }
 
@@ -239,49 +244,31 @@ func listJobs(c *gin.Context) {
 }
 
 func jobHandler(c *gin.Context) {
-	jobName := c.Query("job")
-	if jobName == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Job name is required"})
+	var request TriggerJobRequest
+
+	// Bind JSON body to request struct
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
 
-	namespace := c.Query("namespace")
-	if namespace == "" {
-		namespace = "default"
+	// Set default namespace if not provided
+	if request.Namespace == "" {
+		request.Namespace = "default"
 	}
 
-	if c.Request.Method == http.MethodGet {
-		job, err := clientset.BatchV1().Jobs(namespace).Get(context.Background(), jobName, metav1.GetOptions{})
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching job status"})
-			return
-		}
-
-		status := "unknown"
-		if job.Status.Succeeded > 0 {
-			status = "succeeded"
-		} else if job.Status.Failed > 0 {
-			status = "failed"
-		} else if job.Status.Active > 0 {
-			status = "running"
-		}
-
-		c.JSON(http.StatusOK, gin.H{"job": jobName, "status": status})
+	// Call performTriggerJob with extracted values
+	newJobName, err := performTriggerJob(request)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	if c.Request.Method == http.MethodPost {
-		newJobName, err := performTriggerJob(jobName, namespace)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{
-			"message":   fmt.Sprintf("Job '%s' triggered successfully", newJobName),
-			"job":       newJobName,
-			"namespace": namespace,
-		})
-	}
+	c.JSON(http.StatusOK, gin.H{
+		"message":   fmt.Sprintf("Job '%s' triggered successfully", newJobName),
+		"job":       newJobName,
+		"namespace": request.Namespace,
+	})
 }
 
 func main() {

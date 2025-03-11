@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: hello-job
+  name: test-job
   namespace: default
 spec:
   template:
@@ -9,5 +9,5 @@ spec:
       containers:
       - name: hello
         image: busybox
-        command: ["echo", "Hello from Kubernetes Job"]
+        command: ["sh", "-c", "env"]
       restartPolicy: Never

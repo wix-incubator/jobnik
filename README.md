@@ -10,45 +10,70 @@ Jobnik is a tiny web application that allows triggering and monitoring Kubernete
 
 ## Features
 
-- Trigger a Kubernetes job via an HTTP POST request.
+- Trigger a Kubernetes job via an HTTP `POST` request with **custom environment variables**.
 - Automatically generates unique job names.
 - Monitors job completion.
 - Deletes the job 1 minute after it has successfully completed.
 
 ## Prerequisites
 
-- Kubernetes Cluster with RBAC configured to allow job creation and deletion.
+- A **Kubernetes cluster** with RBAC permissions for job creation and deletion.
 - Go application packaged into a Docker container.
 - ArgoCD to manage deployments (optional).
 - An HTTP client or curl for triggering jobs.
 
-## Deployment
+## Installation Using Helm
 
-1. **Kubernetes Deployment**: The Go application is deployed as a Kubernetes Deployment using the provided `deployment.yaml` file.
-2. **RBAC Configuration**: The Go application requires the `Role` and `RoleBinding` defined in `roles.yaml` to interact with Kubernetes jobs.
-3. **ArgoCD Application**: Optionally, the application can be deployed and managed by ArgoCD using the `argocd-app.yaml`.
-
-For complete deployment instructions, please refer to the Kubernetes YAML files provided.
+```sh
+helm install jobnik ./helm/jobnik
+```
+By default, Jobnik is deployed with:
+* 1 replica
+* RBAC enabled
+* Memory requests: 128Mi, CPU requests: 64m
+* ClusterIP service on port 80 targeting port 8080
 
 ------
-## How It Works
+## API Endpoints
 
-### API Endpoints
+### **1. Trigger a Job** (`POST /job`)
 
-### 1. `POST /job`
+This endpoint **creates and runs** a new Kubernetes job with optional **custom environment variables**.
 
-This endpoint triggers a new Kubernetes job.
-
-#### Request
-
+#### **Request**
 - **Method**: `POST`
-- **URL**: `/job?job=<jobName>&namespace=<namespace>`
+- **URL**: `/job`
+- **Body**: JSON payload specifying the job name, namespace, and optional environment variables.
 
-#### Example Request
+#### **Request Parameters**
+| Parameter  | Type   | Required | Description |
+|------------|--------|----------|-------------|
+| `jobName`  | string | ✅ Yes   | Name of the Kubernetes Job to trigger. |
+| `namespace` | string | ✅ Yes   | Namespace where the Job should be created. |
+| `envVars`  | object | ❌ No    | Key-value pairs of environment variables to inject into the Job. |
 
-```bash
-curl -X POST "http://localhost:8080/job?job=aws-job&namespace=default" \
-    -H "Accept: application/json"
+#### **Example Request (cURL)**
+
+```sh
+curl -X POST "http://localhost:8080/job" \
+    -H "Accept: application/json" \
+    -H "Content-Type: application/json" \
+    -d '{
+        "jobName": "test-job",
+        "namespace": "default",
+        "envVars": {
+            "AWS_REGION": "us-west-2",
+            "S3_BUCKET": "my-data-bucket",
+            "DATABASE_URL": "postgres://user:password@db:5432/app",
+            "REDIS_HOST": "redis-service",
+            "LOG_LEVEL": "debug",
+            "SERVICE_NAME": "test-service",
+            "MAX_RETRIES": "5",
+            "TIMEOUT": "30s",
+            "ENABLE_FEATURE_X": "true",
+            "INSTANCE_ID": "test-instance-12345"
+        }
+    }'
 ```
 
 ### Response:
@@ -72,8 +97,7 @@ This endpoint retrieves the status of an existing job.
 #### Example Request
 
 ```bash
-curl -X GET "http://localhost:8080/job?job=aws-job-run-1234567890&namespace=default" \
-    -H "Accept: application/json"
+curl -X GET "http://localhost:8080/job?job=aws-job-run-1234567890&namespace=default"
 ```
 
 ### Response:
