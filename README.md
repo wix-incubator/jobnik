@@ -166,6 +166,7 @@ else:
 ---
 
 ### **Go Example**
+```
 package main
 
 import (
@@ -224,17 +225,29 @@ func main() {
         fmt.Printf("Failed to trigger job: %d\n", resp.StatusCode)
     }
 }
-
 ```
-
----
 
 ### **cURL Example**
 ```sh
-curl -X POST "http://job-service.default.svc.cluster.local:8080/job/trigger" \
-     -H "Authorization: Bearer YOUR_TOKEN" \
+curl -X POST "http://job-service.default.svc.cluster.local:8080/job" \
      -H "Content-Type: application/json" \
-     -d '{"job_id": "12345"}'
+     -d '{
+        "jobName": "test-job",
+        "namespace": "default",
+        "envVars": {
+            "AWS_REGION": "us-west-2",
+            "S3_BUCKET": "my-data-bucket",
+            "DATABASE_URL": "postgres://user:password@db:5432/app",
+            "REDIS_HOST": "redis-service",
+            "LOG_LEVEL": "debug",
+            "SERVICE_NAME": "test-service",
+            "MAX_RETRIES": "5",
+            "TIMEOUT": "30s",
+            "ENABLE_FEATURE_X": "true",
+            "INSTANCE_ID": "test-instance-12345"
+        }
+    }'
+
 ```
 
 ---
