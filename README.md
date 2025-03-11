@@ -134,24 +134,38 @@ You can trigger a job using a simple HTTP request within a **Kubernetes cluster*
 import requests
 
 # Replace with your internal service name and namespace
-url = "http://job-service.default.svc.cluster.local:8080/job/trigger"
+url = "http://job-service.default.svc.cluster.local:8080/job"
 
-# Optional headers and payload
-headers = {"Authorization": "Bearer YOUR_TOKEN", "Content-Type": "application/json"}
-data = {"job_id": "12345"}
+# Request body containing job details and environment variables
+data = {
+    "jobName": "test-job",
+    "namespace": "default",
+    "envVars": {
+        "AWS_REGION": "us-west-2",
+        "S3_BUCKET": "my-data-bucket",
+        "DATABASE_URL": "postgres://user:password@db:5432/app",
+        "REDIS_HOST": "redis-service",
+        "LOG_LEVEL": "debug",
+        "SERVICE_NAME": "test-service",
+        "MAX_RETRIES": "5",
+        "TIMEOUT": "30s",
+        "ENABLE_FEATURE_X": "true",
+        "INSTANCE_ID": "test-instance-12345"
+    }
+}
+
+headers = {"Content-Type": "application/json"}
 
 response = requests.post(url, json=data, headers=headers)
 
 if response.status_code == 200:
-    print("Job triggered successfully!")
+    print("Job triggered successfully:", response.json())
 else:
-    print(f"Failed to trigger job: {response.status_code} - {response.text}")
+    print("Failed to trigger job:", response.text)
 ```
-
 ---
 
 ### **Go Example**
-```go
 package main
 
 import (
@@ -162,10 +176,27 @@ import (
 )
 
 func main() {
-    url := "http://job-service.default.svc.cluster.local:8080/job/trigger"
-    payload := map[string]string{"job_id": "12345"}
-    
-    jsonData, err := json.Marshal(payload)
+    url := "http://job-service.default.svc.cluster.local:8080/job"
+
+    // Request body containing job details and environment variables
+    data := map[string]interface{}{
+        "jobName":   "test-job",
+        "namespace": "default",
+        "envVars": map[string]string{
+            "AWS_REGION": "us-west-2",
+            "S3_BUCKET":  "my-data-bucket",
+            "DATABASE_URL": "postgres://user:password@db:5432/app",
+            "REDIS_HOST": "redis-service",
+            "LOG_LEVEL": "debug",
+            "SERVICE_NAME": "test-service",
+            "MAX_RETRIES": "5",
+            "TIMEOUT": "30s",
+            "ENABLE_FEATURE_X": "true",
+            "INSTANCE_ID": "test-instance-12345",
+        },
+    }
+
+    jsonData, err := json.Marshal(data)
     if err != nil {
         fmt.Println("Error marshalling JSON:", err)
         return
@@ -177,7 +208,6 @@ func main() {
         return
     }
 
-    req.Header.Set("Authorization", "Bearer YOUR_TOKEN")
     req.Header.Set("Content-Type", "application/json")
 
     client := &http.Client{}
@@ -194,6 +224,7 @@ func main() {
         fmt.Printf("Failed to trigger job: %d\n", resp.StatusCode)
     }
 }
+
 ```
 
 ---
