@@ -79,32 +79,9 @@ curl -X POST "http://localhost:8080/job" \
 ### Response:
 ```json
 {
-  "message": "Job 'aws-job-run-1234567890' triggered successfully",
-  "job": "aws-job-run-1234567890",
+  "message": "Job 'test-job-run-1234567890' triggered successfully",
+  "job": "test-job-run-1234567890",
   "namespace": "default"
-}
-```
-
-### 2. `GET /job`
-
-This endpoint retrieves the status of an existing job.
-
-#### Request
-
-- **Method**: `GET`
-- **URL**: `/job?job=<jobName>&namespace=<namespace>`
-
-#### Example Request
-
-```bash
-curl -X GET "http://localhost:8080/job?job=aws-job-run-1234567890&namespace=default"
-```
-
-### Response:
-```json
-{
-  "job": "aws-job-run-1234567890",
-  "status": "running"
 }
 ```
 
@@ -117,12 +94,12 @@ This endpoint fetches the status of a triggered Kubernetes job.
 
 ### Request Parameters
 ``` bash
-job?job=aws-job-run-1735642406-9319&namespace=default
+job?job=test-job-run-1735642406-9319&namespace=default
 ```
 
 ### Response:
 ``` bash
-"job":"aws-run-1735745566-9081","status":"succeeded"
+"job":"test-run-1735745566-9081","status":"succeeded"
 ```
 ----------
 ## **Triggering a Job via Web Request**
@@ -250,6 +227,13 @@ curl -X POST "http://job-service.default.svc.cluster.local:8080/job" \
 
 ```
 
+### Response:
+```json
+{
+  "job": "test-job-run-1234567890",
+  "status": "running"
+}
+```
 ---
 
 These examples demonstrate how to send a **POST request** to trigger a job within a Kubernetes cluster using an internal service (`job-service.default.svc.cluster.local`). Ensure that your **service name, namespace, and port** match your actual deployment.
