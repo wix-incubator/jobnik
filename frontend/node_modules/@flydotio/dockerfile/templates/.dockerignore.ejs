@@ -1,0 +1,21 @@
+/.git
+/node_modules
+.dockerignore
+.env
+Dockerfile
+fly.toml
+<% if (remix) { -%>
+
+/.cache
+/build
+/public/build
+<% } -%>
+<% if (meteor) { -%>
+
+/.meteor/local
+<% } -%>
+<% if (prismaFile) { -%>
+
+<%= path.join(prismaFile) %>
+<%= path.join("prisma", prismaFile) %>
+<% } -%>

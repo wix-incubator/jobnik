@@ -1,0 +1,62 @@
+{
+  "name": "@base44/sdk",
+  "version": "0.1.2",
+  "description": "JavaScript SDK for Base44 API",
+  "main": "dist/index.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
+  "browser": "dist/index.umd.js",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rollup -c && npm run copy:types",
+    "build:types": "tsc --emitDeclarationOnly",
+    "copy:types": "cp src/types.d.ts dist/index.d.ts",
+    "lint": "eslint src",
+    "test": "jest",
+    "test:unit": "jest --testPathIgnorePatterns=tests/e2e",
+    "test:e2e": "jest tests/e2e",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "axios": "^1.6.2"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.23.3",
+    "@babel/preset-env": "^7.23.3",
+    "@rollup/plugin-babel": "^6.0.4",
+    "@rollup/plugin-commonjs": "^25.0.7",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-terser": "^0.4.4",
+    "@types/jest": "^29.5.10",
+    "babel-jest": "^29.7.0",
+    "dotenv": "^16.3.1",
+    "eslint": "^8.54.0",
+    "jest": "^29.7.0",
+    "nock": "^13.4.0",
+    "rollup": "^4.5.2",
+    "typescript": "^5.3.2"
+  },
+  "peerDependencies": {
+    "typescript": ">=4.0.0"
+  },
+  "keywords": [
+    "base44",
+    "api",
+    "sdk"
+  ],
+  "author": "Base44",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/base44/sdk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/base44/sdk/issues"
+  },
+  "homepage": "https://github.com/base44/sdk#readme"
+}

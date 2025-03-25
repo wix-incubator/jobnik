@@ -1,0 +1,148 @@
+#!/usr/bin/env node
+<% tab = n => (usingTabs ? "\t" : "  ").repeat(n) -%>
+
+<% if (typeModule) { -%>
+import { spawn } from 'node:child_process'
+<% if (options.swap  && !flySetup()) { -%>
+import { writeFileSync } from 'node:fs'
+<% } -%>
+<% if (prismaFile) { -%>
+import path from 'node:path'
+import fs from 'node:fs'
+<% } else if (prismaEnv && sqlite3) { -%>
+import fs from 'node:fs'
+<% } -%>
+<% } else { -%>
+const { spawn } = require('node:child_process')
+<% if (options.swap && !flySetup()) { -%>
+const { writeFileSync } = require('node:fs')
+<% } -%>
+<% if (prismaFile) { -%>
+const path = require('node:path')
+const fs = require('node:fs')
+<% } else if (prismaEnv && sqlite3) { -%>
+const fs = require('node:fs')
+<% } -%>
+<% } -%>
+
+const env = { ...process.env }
+
+<% if (adonisjs && postgres) { -%>
+if (process.env.DATABASE_URL) {
+<%= tab(1) %>try {
+<%= tab(2) %>const databaseUrl = new URL(process.env.DATABASE_URL)
+<%= tab(2) %>env.PG_HOST = databaseUrl.hostname
+<%= tab(2) %>env.PG_PORT = databaseUrl.port
+<%= tab(2) %>env.PG_USER = databaseUrl.username
+<%= tab(2) %>env.PG_PASSWORD = databaseUrl.password
+<%= tab(2) %>env.PG_DB_NAME = databaseUrl.pathname.slice(1)
+<%= tab(1) %>} catch (err) {
+<%= tab(2) %>console.error('Invalid DATABASE_URL')
+<%= tab(1) %>}
+}
+
+<% } -%>
+<% n = typeModule ? 0 : 1 -%>
+<% if (!typeModule) { -%>
+;(async() => {
+<% } -%>
+<% if (options.swap && !flySetup()) { -%>
+<%= tab(n) %>// allocate swap space
+<%= tab(n) %>await exec('fallocate -l <%= options.swap %> /swapfile')
+<%= tab(n) %>await exec('chmod 0600 /swapfile')
+<%= tab(n) %>await exec('mkswap /swapfile')
+<%= tab(n) %>writeFileSync('/proc/sys/vm/swappiness', '10')
+<%= tab(n) %>await exec('swapon /swapfile')
+<%= tab(n) %>writeFileSync('/proc/sys/vm/overcommit_memory', '1')
+
+<% } -%>
+<% if (prisma || (build && options.deferBuild) || nextjsGeneration) { -%>
+<% if (setupScriptType == 'docker') { -%>
+<% if (prisma && sqlite3) { -%>
+<%= tab(n) %>// If running the web server then migrate existing database
+<% } else { -%>
+<%= tab(n) %>// If running the web server then prerender pages
+<% } -%>
+<%= tab(n) %>if (process.argv.slice(-<%=
+    Array.isArray(startCommand) ? startCommand.length : startCommand.split(" ").length
+    %>).join(' ') === '<%-
+    Array.isArray(startCommand) ? startCommand.join(" ") : startCommand
+    %>'<% if (litefs) { %> && process.env.FLY_REGION === process.env.PRIMARY_REGION<% } %>) {
+<% n++ -%>
+<% } -%>
+<% if (prisma) { -%>
+<% if (prismaFile) { -%>
+<%= tab(n) %>// place Sqlite3 database on volume
+<%= tab(n) %><%= nuxtjs ? 'let' : 'const' %> source = path.resolve('<%- prismaFile %>')
+<%= tab(n) %>const target = '/data/' + path.basename(source)
+<% if (nuxtjs) { -%>
+<%= tab(n) %>source = path.resolve('./.output/server', '<%- prismaFile %>')
+<% } -%>
+<%= tab(n) %>if (!fs.existsSync(source) && fs.existsSync('/data')) fs.symlinkSync(target, source)
+<% } else if (sqlite3 && prismaEnv) { -%>
+<%= tab(n) %>const url = new URL(process.env.<%= prismaEnv %>)
+<%= tab(n) %>const target = url.protocol === 'file:' && url.pathname
+<% if (litestream && sqlite3 && (prismaFile || prismaEnv)) { -%>
+
+<%= tab(n) %>// restore database if not present and replica exists
+<% } -%>
+<% } -%>
+<% if (sqlite3 && (prismaSeed || litestream) && (prismaFile || prismaEnv)) { -%>
+<%= tab(n) %><%= litestream && prismaSeed && sqlite3 ? 'let' : 'const' %> newDb = <%- !prismaFile ? 'target && ' : '' %>!fs.existsSync(target)
+<% } -%>
+<% if (litestream && sqlite3 && (prismaFile || prismaEnv)) { -%>
+<%= tab(n) %>if (newDb && process.env.BUCKET_NAME) {
+<%= tab(n+1) %>await exec(`<% if (setupScriptType == 'dbsetup') { %>npx <% } %>litestream restore -config litestream.yml -if-replica-exists ${target}`)
+<% if (prismaSeed && sqlite3 && (prismaFile || prismaEnv)) { -%>
+<%= tab(n+1) %>newDb = !fs.existsSync(target)
+<% } -%>
+<%= tab(n) %>}
+<% } -%>
+<% if (sqlite3) { -%>
+<% if (prismaFile || litestream) { -%>
+
+<%= tab(n) %>// prepare database
+<% } -%>
+<%= tab(n) %>await exec('<%= npx %> prisma migrate deploy')
+<% } -%>
+<% if (prismaSeed && sqlite3 && (prismaFile || prismaEnv)) { -%>
+<%= tab(n) %>if (newDb) await exec(<%- prismaSeed.match(/^[-.\/ \w]+$/) ? "'" + prismaSeed + "'" : JSON.stringify(prismaSeed) %>)
+<% } -%>
+<% } -%>
+<% if (nextjsGeneration) { -%>
+<%= tab(n) %>await exec('<%= npx %> next build --experimental-build-mode generate')
+<% } -%>
+<% if (build && options.deferBuild) { -%>
+<%= tab(n) %>await exec('<%= packager %> run build')
+<% } -%>
+<% if (setupScriptType == 'docker') { -%>
+<%= tab(--n) %>}
+<% } -%>
+
+<% } -%>
+<%= tab(n) %>// launch application
+<% if (litestream) { -%>
+<%= tab(n) %>if (process.env.BUCKET_NAME) {
+<%= tab(n+1) %>await exec(`<% if (setupScriptType == 'dbsetup') { %>npx <% } %>litestream replicate -config litestream.yml -exec ${JSON.stringify(process.argv.slice(2).join(' '))}`)
+<%= tab(n) %>} else {
+<%= tab(n+1) %>await exec(process.argv.slice(2).join(' '))
+<%= tab(n) %>}
+<% } else { -%>
+<%= tab(n) %>await exec(process.argv.slice(2).join(' '))
+<% } -%>
+<% if (!typeModule) { -%>
+})()
+<% } -%>
+
+<%= tab(0) %>function exec(command) {
+<%= tab(1) %>const child = spawn(command, { shell: true, stdio: 'inherit', env })
+<%= tab(1) %>return new Promise((resolve, reject) => {
+<%= tab(2) %>child.on('exit', code => {
+<%= tab(3) %>if (code === 0) {
+<%= tab(4) %>resolve()
+<%= tab(3) %>} else {
+<%= tab(4) %>reject(new Error(`${command} failed rc=${code}`))
+<%= tab(3) %>}
+<%= tab(2) %>})
+<%= tab(1) %>})
+<%= tab(0) %>}
