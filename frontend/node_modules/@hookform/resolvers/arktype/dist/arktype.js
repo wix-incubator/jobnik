@@ -1,2 +1,0 @@
-var r=require("@hookform/resolvers"),e=require("arktype");function o(r){for(var e=[].concat(r),o={};e.length;){var s=e[0],t=s.path.join(".");o[t]||(o[t]={message:s.message,type:s.code}),e.shift()}return o}exports.arktypeResolver=function(s,t,a){return void 0===a&&(a={}),function(t,i,n){var v=s(t);return v instanceof e.ArkErrors?{values:{},errors:r.toNestErrors(o(v),n)}:(n.shouldUseNativeValidation&&r.validateFieldsNatively({},n),{errors:{},values:a.raw?Object.assign({},t):v})}};
-//# sourceMappingURL=arktype.js.map
