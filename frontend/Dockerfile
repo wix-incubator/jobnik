@@ -3,30 +3,29 @@ FROM node:18-alpine AS build
 # Set working directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json
+# Install dependencies and build
 COPY package*.json ./
-
-# Install dependencies
 RUN npm ci
 
-# Copy all files
 COPY . .
-
-# Build the app
 RUN npm run build
 
-# Production stage
-FROM nginx:alpine
+# ---------------------------
+# Final stage: serve via Node.js
+# ---------------------------
+FROM node:18-alpine
 
-USER root  # 👈 Add this line before COPY
+# Install a static file server
+RUN npm install -g serve
 
-# Copy built files from build stage to nginx serve directory
-COPY --from=build /app/dist /usr/share/nginx/html
+# Set working directory
+WORKDIR /app
 
-# Copy nginx config
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy built files
+COPY --from=build /app/dist .
 
-# Expose port
-EXPOSE 80
+# Expose default serve port
+EXPOSE 3000
 
-CMD ["nginx", "-g", "daemon off;"]
+# Start the app
+CMD ["serve", "-s", ".", "-l", "3000"]

@@ -19,8 +19,10 @@ import (
 
 // RegisterHandlers sets up all API routes
 func RegisterHandlers(r *gin.Engine, k8sClient *kubernetes.Client) {
+	api := r.Group("/api")
+
 	// Health check endpoint
-	r.GET("/healthz", func(c *gin.Context) {
+	api.GET("/healthz", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"status": "healthy",
 		})
@@ -28,7 +30,7 @@ func RegisterHandlers(r *gin.Engine, k8sClient *kubernetes.Client) {
 
 	// List jobs endpoint
 	// List jobs endpoint with pagination and metadata
-	r.GET("/jobs", func(c *gin.Context) {
+	api.GET("/jobs", func(c *gin.Context) {
 		namespace := c.DefaultQuery("namespace", "")
 		if namespace == "all" {
 			namespace = ""
@@ -83,7 +85,7 @@ func RegisterHandlers(r *gin.Engine, k8sClient *kubernetes.Client) {
 	})
 
 	// Trigger job from base template
-	r.POST("/job", func(c *gin.Context) {
+	api.POST("/job", func(c *gin.Context) {
 		var req struct {
 			JobName   string            `json:"jobName" binding:"required"`
 			Namespace string            `json:"namespace" binding:"required"`
@@ -160,7 +162,7 @@ func RegisterHandlers(r *gin.Engine, k8sClient *kubernetes.Client) {
 		})
 	})
 	// Get logs for a job's container
-	r.GET("/job/logs", func(c *gin.Context) {
+	api.GET("/job/logs", func(c *gin.Context) {
 		jobName := c.Query("jobName")
 		namespace := c.DefaultQuery("namespace", "default")
 		container := c.Query("container") // Optional: container name if multiple containers
