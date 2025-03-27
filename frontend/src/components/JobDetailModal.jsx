@@ -35,8 +35,9 @@ export default function JobDetailModal({ job, isOpen, onClose, onTriggerJob }) {
     setLogsError("");
     
     try {
-      const apiUrl = localStorage.getItem('k8sJobManagerApiUrl') || "http://localhost:8080";
-      const url = `${apiUrl}/job/logs?jobName=${encodeURIComponent(job.name)}&namespace=${encodeURIComponent(job.namespace)}`;
+      const url = `/api/job/logs?jobName=${encodeURIComponent(job.name)}&namespace=${encodeURIComponent(job.namespace)}`;
+      // const apiUrl = localStorage.getItem('k8sJobManagerApiUrl') || "http://localhost:8080";
+      // const url = `${apiUrl}/job/logs?jobName=${encodeURIComponent(job.name)}&namespace=${encodeURIComponent(job.namespace)}`;
       
       console.log('Fetching logs from:', url);
       

@@ -35,7 +35,7 @@ export default function Jobs() {
 
     setIsLoadingJobs(true);
     try {
-      const url = `${apiUrl}/jobs?limit=${pagination.limit}&offset=${offset}`;
+      const url = `/api/jobs?limit=${pagination.limit}&offset=${offset}`;
       console.log('Fetching jobs from:', url);
 
       const response = await fetch(url, {
@@ -96,7 +96,7 @@ export default function Jobs() {
   const handleTriggerJob = async (jobData) => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${apiUrl}/job`, {
+        const response = await fetch(`/api/job`, {
         method: "POST",
         headers: {
           'Accept': 'application/json',
@@ -141,7 +141,8 @@ export default function Jobs() {
     setConnectionStatus(status);
     if (status) {
       try {
-        const response = await fetch(`${apiUrl}/healthz`, { method: "GET" });
+        const response = await fetch(`/api/healthz`, { method: "GET" });
+
         if (!response.ok) {
           throw new Error("Failed to connect to the backend API.");
         }
