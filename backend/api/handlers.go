@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"math/rand"
 	"net/http"
@@ -192,17 +193,21 @@ func RegisterHandlers(r *gin.Engine, k8sClient *kubernetes.Client) {
 		}
 
 		req := podClient.GetLogs(pod.Name, logOptions)
-		logs, err := req.Stream(context.TODO())
+		logStream, err := req.Stream(context.TODO())
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to stream logs: %v", err)})
 			return
 		}
-		defer logs.Close()
+		defer logStream.Close()
 
-		// Read logs into string
-		buf := make([]byte, 2000)
-		n, _ := logs.Read(buf)
-		logContent := string(buf[:n])
+		// Read all logs from the stream
+		logBytes, err := io.ReadAll(logStream)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to read logs: %v", err)})
+			return
+		}
+
+		logContent := string(logBytes)
 
 		c.JSON(http.StatusOK, gin.H{
 			"jobName":   jobName,
@@ -210,7 +215,6 @@ func RegisterHandlers(r *gin.Engine, k8sClient *kubernetes.Client) {
 			"logs":      logContent,
 		})
 	})
-
 }
 
 // monitorJob checks job status and deletes it once completed
