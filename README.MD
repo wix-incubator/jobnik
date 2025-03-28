@@ -1,240 +1,248 @@
+
 <div align="center">
   <img src="jobnik-logo.webp" alt="Centered Logo" style="width: 250px;">
 </div>
 
-<!-- ![Jobnik Logo](smaller-logo.png) -->
+# Jobnik: A Kubernetes-Native Job Triggering Service
 
-# Jobnik: A Kubernetes native job triggering Service
+**Jobnik** is a lightweight web service that enables triggering, listing, monitoring, and retrieving logs from Kubernetes Jobs via a REST API. Ideal for event-driven workflows, CI/CD pipelines, and custom job execution needs.
 
-Jobnik is a tiny web application that allows triggering and monitoring Kubernetes Jobs using standard Rest-API
+---
 
-## Features
+<div align="center">
+  <img src="documentation/Screenshot 2025-03-28 at 9.10.02.png" alt="Centered Logo" style="width: 1000px;">
+</div>
 
-- Trigger a Kubernetes job via an HTTP `POST` request with **custom environment variables**.
-- Automatically generates unique job names.
-- Monitors job completion.
-- Deletes the job 1 minute after it has successfully completed.
+<div align="center">
+  <img src="documentation/Screenshot 2025-03-28 at 9.10.23.png" alt="Centered Logo" style="width: 1000px;">
+</div>
 
-## Prerequisites
+---
+## 🚀 Features
 
-- A **Kubernetes cluster** with RBAC permissions for job creation and deletion.
-- Go application packaged into a Docker container.
-- ArgoCD to manage deployments (optional).
-- An HTTP client or curl for triggering jobs.
+- ✅ Trigger Kubernetes jobs with **custom environment variables and arguments**
+- 🆕 Jobnik UI. TBD
+- 🆕 List jobs with **pagination and metadata**
+- 🆕 Fetch **logs from job pods**
+- 🔁 Automatically generates unique job names
+- 🧼 Cleans up completed jobs 30 seconds after success
 
-## Installation Using Helm
+---
 
-```sh
+## 🧱 Prerequisites
+
+- ✅ A Kubernetes cluster with appropriate **RBAC permissions** to create, list, and delete jobs
+- ✅ A base **Job template** deployed in your cluster
+- ✅ Docker image for your job logic
+- ✅ Optionally, use **ArgoCD** for managing Jobnik deployments
+
+---
+
+## 📦 Installation (Helm)
+
+```bash
 helm install jobnik ./helm/jobnik
 ```
-By default, Jobnik is deployed with:
-* 1 replica
-* RBAC enabled
-* Memory requests: 128Mi, CPU requests: 64m
-* ClusterIP service on port 80 targeting port 8080
 
-------
-## API Endpoints
+### Default Configuration
 
-### **1. Trigger a Job** (`POST /job`)
+- 1 replica
+- RBAC enabled
+- Resource requests: 128Mi memory, 64m CPU
+- Exposed as a ClusterIP service on port `80` targeting port `8080`
 
-This endpoint **creates and runs** a new Kubernetes job with optional **custom environment variables**.
+---
 
-#### **Request**
-- **Method**: `POST`
-- **URL**: `/job`
-- **Body**: JSON payload specifying the job name, namespace, and optional environment variables.
+## 📚 API Endpoints
 
-#### **Request Parameters**
-| Parameter  | Type   | Required | Description |
-|------------|--------|----------|-------------|
-| `jobName`  | string | ✅ Yes   | Name of the Kubernetes Job to trigger. |
-| `namespace` | string | ✅ Yes   | Namespace where the Job should be created. |
-| `envVars`  | object | ❌ No    | Key-value pairs of environment variables to inject into the Job. |
+### 1. **Trigger a Job**  
+`POST /api/job`
 
-#### **Example Request (cURL)**
+Creates and runs a new Kubernetes job based on an existing template.
 
-```sh
-curl -X POST "http://localhost:8080/job" \
-    -H "Accept: application/json" \
-    -H "Content-Type: application/json" \
-    -d '{
-        "jobName": "test-job",
-        "namespace": "default",
-        "envVars": {
-            "AWS_REGION": "us-west-2",
-            "S3_BUCKET": "my-data-bucket",
-            "DATABASE_URL": "postgres://user:password@db:5432/app",
-            "REDIS_HOST": "redis-service",
-            "LOG_LEVEL": "debug",
-            "SERVICE_NAME": "test-service",
-            "MAX_RETRIES": "5",
-            "TIMEOUT": "30s",
-            "ENABLE_FEATURE_X": "true",
-            "INSTANCE_ID": "test-instance-12345"
-        }
-    }'
+#### Request Body
+
+| Field       | Type              | Required | Description                             |
+|-------------|-------------------|----------|-----------------------------------------|
+| `jobName`   | string            | ✅ Yes   | Base Job name to clone and trigger      |
+| `namespace` | string            | ✅ Yes   | Namespace where job will run            |
+| `envVars`   | object (string)   | ❌ No    | Key-value pairs of environment variables |
+| `args`      | array of strings  | ❌ No    | Command-line arguments to pass to job   |
+
+#### Example Request (cURL)
+```bash
+curl -X POST http://localhost:8080/api/job   -H "Content-Type: application/json"   -d '{
+    "jobName": "test-job",
+    "namespace": "default",
+    "envVars": {
+      "LOG_LEVEL": "debug",
+      "TIMEOUT": "30s"
+    },
+    "args": ["--export", "--dry-run"]
+  }'
 ```
 
-### Response:
+#### Response
 ```json
 {
-  "message": "Job 'test-job-run-1234567890' triggered successfully",
-  "job": "test-job-run-1234567890",
+  "message": "Job test-job-run-1712345678-1234 triggered successfully",
+  "jobName": "test-job-run-1712345678-1234",
   "namespace": "default"
 }
 ```
 
+---
 
-### 2. `GET /job`
-This endpoint fetches the status of a triggered Kubernetes job.
-- **Method**: `GET`
-- **URL**: `/job`
-- **Request params** (job, namespace):
+### 2. **List Jobs**  
+`GET /api/jobs`
 
-### Request Parameters
-``` bash
-job?job=test-job-run-1735642406-9319&namespace=default
+Fetches jobs with optional pagination and namespace filtering.
+
+#### Query Parameters
+
+| Field       | Type   | Required | Description                             |
+|-------------|--------|----------|-----------------------------------------|
+| `namespace` | string | ❌ No    | Namespace to list jobs from (or `all`)  |
+| `limit`     | int    | ❌ No    | Max number of jobs to return (default: 10) |
+| `offset`    | int    | ❌ No    | Pagination offset (default: 0)          |
+
+#### Example Request
+```bash
+curl "http://localhost:8080/api/jobs?namespace=default&limit=5&offset=0"
 ```
 
-### Response:
-``` bash
-"job":"test-run-1735745566-9081","status":"succeeded"
+#### Response Headers
 ```
-----------
-## **Triggering a Job via Web Request**
+X-Total-Count: 25
+X-Limit: 5
+X-Offset: 0
+```
 
-You can trigger a job using a simple HTTP request within a **Kubernetes cluster**. Below are examples in **Python**, **Go**, and **cURL** using an internal Kubernetes service.
+#### JSON Response
+```json
+{
+  "total": 25,
+  "limit": 5,
+  "offset": 0,
+  "count": 5,
+  "jobs": [
+    {
+      "name": "test-job-run-1712345678-0001",
+      "status": "succeeded"
+    }
+  ]
+}
+```
 
-### **Python Example**
+---
+
+### 3. **Get Job Logs**  
+`GET /api/job/logs`
+
+Fetch logs from a pod belonging to a Kubernetes job.
+
+#### Query Parameters
+
+| Field       | Type   | Required | Description                                |
+|-------------|--------|----------|--------------------------------------------|
+| `jobName`   | string | ✅ Yes   | Name of the job                            |
+| `namespace` | string | ❌ No    | Namespace (default: `default`)             |
+| `container` | string | ❌ No    | Container name (if job has multiple)       |
+
+#### Example Request
+```bash
+curl "http://localhost:8080/api/job/logs?jobName=test-job-run-1712345678&namespace=default"
+```
+
+#### JSON Response
+```json
+{
+  "jobName": "test-job-run-1712345678",
+  "namespace": "default",
+  "logs": "Starting job...
+Step 1 done...
+Job completed."
+}
+```
+
+---
+
+## 🧪 Sample Usage
+
+### 🔧 Inside Kubernetes (Internal Cluster Access)
+
+Replace `job-service.default.svc.cluster.local` with your actual service name.
+
+### ✅ Python
 ```python
 import requests
 
-# Replace with your internal service name and namespace
-url = "http://job-service.default.svc.cluster.local:8080/job"
-
-# Request body containing job details and environment variables
-data = {
-    "jobName": "test-job",
-    "namespace": "default",
-    "envVars": {
-        "AWS_REGION": "us-west-2",
-        "S3_BUCKET": "my-data-bucket",
-        "DATABASE_URL": "postgres://user:password@db:5432/app",
-        "REDIS_HOST": "redis-service",
-        "LOG_LEVEL": "debug",
-        "SERVICE_NAME": "test-service",
-        "MAX_RETRIES": "5",
-        "TIMEOUT": "30s",
-        "ENABLE_FEATURE_X": "true",
-        "INSTANCE_ID": "test-instance-12345"
-    }
+url = "http://job-service.default.svc.cluster.local:8080/api/job"
+payload = {
+  "jobName": "test-job",
+  "namespace": "default",
+  "envVars": {
+    "LOG_LEVEL": "debug"
+  },
+  "args": ["--export"]
 }
-
 headers = {"Content-Type": "application/json"}
-
-response = requests.post(url, json=data, headers=headers)
-
-if response.status_code == 200:
-    print("Job triggered successfully:", response.json())
-else:
-    print("Failed to trigger job:", response.text)
+response = requests.post(url, json=payload, headers=headers)
+print(response.json())
 ```
+
 ---
 
-### **Go Example**
-```
+### ✅ Go
+```go
 package main
 
 import (
-    "bytes"
-    "encoding/json"
-    "fmt"
-    "net/http"
+  "bytes"
+  "encoding/json"
+  "fmt"
+  "net/http"
 )
 
 func main() {
-    url := "http://job-service.default.svc.cluster.local:8080/job"
+  data := map[string]interface{}{
+    "jobName":   "test-job",
+    "namespace": "default",
+    "envVars": map[string]string{
+      "LOG_LEVEL": "debug",
+    },
+    "args": []string{"--dry-run"},
+  }
 
-    // Request body containing job details and environment variables
-    data := map[string]interface{}{
-        "jobName":   "test-job",
-        "namespace": "default",
-        "envVars": map[string]string{
-            "AWS_REGION": "us-west-2",
-            "S3_BUCKET":  "my-data-bucket",
-            "DATABASE_URL": "postgres://user:password@db:5432/app",
-            "REDIS_HOST": "redis-service",
-            "LOG_LEVEL": "debug",
-            "SERVICE_NAME": "test-service",
-            "MAX_RETRIES": "5",
-            "TIMEOUT": "30s",
-            "ENABLE_FEATURE_X": "true",
-            "INSTANCE_ID": "test-instance-12345",
-        },
-    }
+  jsonData, _ := json.Marshal(data)
+  req, _ := http.NewRequest("POST", "http://job-service.default.svc.cluster.local:8080/api/job", bytes.NewBuffer(jsonData))
+  req.Header.Set("Content-Type", "application/json")
 
-    jsonData, err := json.Marshal(data)
-    if err != nil {
-        fmt.Println("Error marshalling JSON:", err)
-        return
-    }
-
-    req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
-    if err != nil {
-        fmt.Println("Error creating request:", err)
-        return
-    }
-
-    req.Header.Set("Content-Type", "application/json")
-
-    client := &http.Client{}
-    resp, err := client.Do(req)
-    if err != nil {
-        fmt.Println("Error sending request:", err)
-        return
-    }
-    defer resp.Body.Close()
-
-    if resp.StatusCode == http.StatusOK {
-        fmt.Println("Job triggered successfully!")
-    } else {
-        fmt.Printf("Failed to trigger job: %d\n", resp.StatusCode)
-    }
+  client := &http.Client{}
+  resp, _ := client.Do(req)
+  fmt.Println("Status:", resp.StatusCode)
 }
 ```
 
-### **cURL Example**
-```sh
-curl -X POST "http://job-service.default.svc.cluster.local:8080/job" \
-     -H "Content-Type: application/json" \
-     -d '{
+---
+
+### ✅ cURL
+```bash
+curl -X POST "http://job-service.default.svc.cluster.local:8080/api/job"      -H "Content-Type: application/json"      -d '{
         "jobName": "test-job",
         "namespace": "default",
         "envVars": {
-            "AWS_REGION": "us-west-2",
-            "S3_BUCKET": "my-data-bucket",
-            "DATABASE_URL": "postgres://user:password@db:5432/app",
-            "REDIS_HOST": "redis-service",
-            "LOG_LEVEL": "debug",
-            "SERVICE_NAME": "test-service",
-            "MAX_RETRIES": "5",
-            "TIMEOUT": "30s",
-            "ENABLE_FEATURE_X": "true",
-            "INSTANCE_ID": "test-instance-12345"
-        }
-    }'
-
+            "LOG_LEVEL": "debug"
+        },
+        "args": ["--dry-run"]
+     }'
 ```
 
-### Response:
-```json
-{
-  "job": "test-job-run-1234567890",
-  "status": "running"
-}
-```
 ---
 
-These examples demonstrate how to send a **POST request** to trigger a job within a Kubernetes cluster using an internal service (`job-service.default.svc.cluster.local`). Ensure that your **service name, namespace, and port** match your actual deployment.
+## 📌 Notes
+
+- Make sure the base job you're cloning is **pre-created** in the target namespace.
+- Jobs are monitored in the background and deleted **30 seconds after successful completion**.
+- You can extend Jobnik to support more features like retries, notifications, or parallel jobs.
 
