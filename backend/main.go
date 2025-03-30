@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	// "fmt"
 	"log"
 	"time"
 
@@ -21,8 +21,8 @@ func main() {
 
 	// Create router
 	r := gin.Default()
-	clientIP := c.ClientIP()
-	fmt.Println("Client IP:", clientIP)
+	// clientIP := c.ClientIP()
+	// fmt.Println("Client IP:", clientIP)
 
 	// Configure CORS
 	r.Use(cors.New(cors.Config{
