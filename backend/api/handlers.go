@@ -128,14 +128,22 @@ func RegisterHandlers(r *gin.Engine, k8sClient *kubernetes.Client) {
 		baseJob.Spec.Template.ObjectMeta.Name = newJobName
 		baseJob.Spec.Template.ObjectMeta.GenerateName = ""
 
-		// Set env vars
+		// Fetch environment variables from the base job
+		baseEnvVars := baseJob.Spec.Template.Spec.Containers[0].Env
+
+		// Combine base environment variables with new variables from the request
+		var combinedEnvVars []corev1.EnvVar
+		combinedEnvVars = append(combinedEnvVars, baseEnvVars...) // Append base environment variables
+
+		// Add user-provided environment variables from the request
 		if len(req.EnvVars) > 0 {
-			var envs []corev1.EnvVar
 			for k, v := range req.EnvVars {
-				envs = append(envs, corev1.EnvVar{Name: k, Value: v})
+				combinedEnvVars = append(combinedEnvVars, corev1.EnvVar{Name: k, Value: v})
 			}
-			baseJob.Spec.Template.Spec.Containers[0].Env = envs
 		}
+
+		// Set the environment variables for the new job
+		baseJob.Spec.Template.Spec.Containers[0].Env = combinedEnvVars
 
 		// Set args
 		if len(req.Args) > 0 {
@@ -162,6 +170,7 @@ func RegisterHandlers(r *gin.Engine, k8sClient *kubernetes.Client) {
 			"namespace": req.Namespace,
 		})
 	})
+
 	// Get logs for a job's container
 	api.GET("/job/logs", func(c *gin.Context) {
 		jobName := c.Query("jobName")
