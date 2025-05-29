@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"time"
 
@@ -19,10 +18,7 @@ func main() {
 		log.Fatalf("Failed to create Kubernetes client: %v", err)
 	}
 
-	// Create router
 	r := gin.Default()
-	clientIP := c.ClientIP()
-	fmt.Println("Client IP:", clientIP)
 
 	// Configure CORS
 	r.Use(cors.New(cors.Config{
