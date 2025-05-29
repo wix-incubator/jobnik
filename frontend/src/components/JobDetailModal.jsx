@@ -1,5 +1,4 @@
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -19,40 +18,38 @@ export default function JobDetailModal({ job, isOpen, onClose, onTriggerJob }) {
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
   const [logsError, setLogsError] = useState("");
   const [activeTab, setActiveTab] = useState("details");
+  const [searchQuery, setSearchQuery] = useState("");
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!isOpen) {
       setLogs("");
       setLogsError("");
+      setSearchQuery("");
       setActiveTab("details");
     }
   }, [isOpen]);
 
   const fetchLogs = async () => {
     if (!job || !job.name) return;
-    
+
     setIsLoadingLogs(true);
     setLogsError("");
-    
+
     try {
       const url = `/api/job/logs?jobName=${encodeURIComponent(job.name)}&namespace=${encodeURIComponent(job.namespace)}`;
-      // const apiUrl = localStorage.getItem('k8sJobManagerApiUrl') || "http://localhost:8080";
-      // const url = `${apiUrl}/job/logs?jobName=${encodeURIComponent(job.name)}&namespace=${encodeURIComponent(job.namespace)}`;
-      
-      console.log('Fetching logs from:', url);
-      
+
       const response = await fetch(url, {
         headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
+          Accept: "application/json",
+          "Content-Type": "application/json",
         },
       });
-      
+
       const isPodsCleanedUp = async (errorResponse) => {
         try {
           const errorData = await errorResponse.clone().json();
           return errorData.error && (
-            errorData.error.includes("Failed to find pods") || 
+            errorData.error.includes("Failed to find pods") ||
             errorData.error.includes("pod has been cleaned up")
           );
         } catch (e) {
@@ -61,7 +58,6 @@ export default function JobDetailModal({ job, isOpen, onClose, onTriggerJob }) {
       };
 
       if (!response.ok) {
-        // Check if this is a "pods cleaned up" scenario
         if (await isPodsCleanedUp(response)) {
           let message;
           if (job.status === "Completed" || job.status === "Succeeded") {
@@ -72,13 +68,11 @@ export default function JobDetailModal({ job, isOpen, onClose, onTriggerJob }) {
             message = "Logs are no longer available as the job's pod has been cleaned up.";
           }
           setLogs("");
-          // Using a different state to indicate this is info, not error
           setLogsError("info:" + message);
           setIsLoadingLogs(false);
           return;
         }
-        
-        // Handle other errors
+
         let errorMessage;
         try {
           const errorData = await response.json();
@@ -88,10 +82,9 @@ export default function JobDetailModal({ job, isOpen, onClose, onTriggerJob }) {
         }
         throw new Error(errorMessage);
       }
-      
+
       const data = await response.json();
-      console.log('Logs API Response:', data);
-      
+
       if (data.logs) {
         setLogs(data.logs);
       } else if (data.error) {
@@ -108,26 +101,6 @@ export default function JobDetailModal({ job, isOpen, onClose, onTriggerJob }) {
     }
   };
 
-  if (!job) return null;
-
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleString();
-  };
-
-  const formatDuration = (startTime, completionTime) => {
-    if (!startTime || !completionTime) return 'N/A';
-    
-    const start = new Date(startTime);
-    const end = new Date(completionTime);
-    const durationMs = end - start;
-    
-    const minutes = Math.floor(durationMs / 60000);
-    const seconds = Math.floor((durationMs % 60000) / 1000);
-    
-    return `${minutes}m ${seconds}s`;
-  };
-
   const handleTabChange = (value) => {
     setActiveTab(value);
     if (value === "logs" && !logs && !isLoadingLogs) {
@@ -136,7 +109,40 @@ export default function JobDetailModal({ job, isOpen, onClose, onTriggerJob }) {
   };
 
   const isInfoMessage = logsError && logsError.startsWith("info:");
-  const getLogsMessage = () => logsError ? logsError.substring(logsError.indexOf(":") + 1) : "";
+  const getLogsMessage = () =>
+    logsError ? logsError.substring(logsError.indexOf(":") + 1) : "";
+
+  const filteredLogs = logs
+    .split("\n")
+    .filter((line) =>
+      line.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    .join("\n");
+  
+    const highlightedLogs = logs
+    .split("\n")
+    .filter(line => line.toLowerCase().includes(searchQuery.toLowerCase()))
+    .map(line => {
+      if (!searchQuery) return line;
+      const regex = new RegExp(`(${searchQuery})`, "gi");
+      return line.replace(regex, "<mark>$1</mark>");
+    })
+    .join("\n");
+  
+  const formatDate = (dateString) =>
+    dateString ? new Date(dateString).toLocaleString() : "N/A";
+
+  const formatDuration = (startTime, completionTime) => {
+    if (!startTime || !completionTime) return "N/A";
+    const start = new Date(startTime);
+    const end = new Date(completionTime);
+    const durationMs = end - start;
+    const minutes = Math.floor(durationMs / 60000);
+    const seconds = Math.floor((durationMs % 60000) / 1000);
+    return `${minutes}m ${seconds}s`;
+  };
+
+  if (!job) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -150,12 +156,8 @@ export default function JobDetailModal({ job, isOpen, onClose, onTriggerJob }) {
             Namespace: <span className="font-semibold">{job.namespace}</span>
           </DialogDescription>
         </DialogHeader>
-        
-        <Tabs 
-          value={activeTab} 
-          onValueChange={handleTabChange}
-          className="w-full"
-        >
+
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="grid grid-cols-2 w-full">
             <TabsTrigger value="details">Details</TabsTrigger>
             <TabsTrigger value="logs">
@@ -172,11 +174,13 @@ export default function JobDetailModal({ job, isOpen, onClose, onTriggerJob }) {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <h3 className="text-sm font-medium text-gray-500">Status</h3>
-                    <p className="mt-1">{job.status || 'Unknown'}</p>
+                    <p className="mt-1">{job.status || "Unknown"}</p>
                   </div>
                   <div>
                     <h3 className="text-sm font-medium text-gray-500">Image</h3>
-                    <p className="mt-1 font-mono text-sm truncate">{job.containerImage || job.image || 'default'}</p>
+                    <p className="mt-1 font-mono text-sm truncate">
+                      {job.containerImage || job.image || "default"}
+                    </p>
                   </div>
                   <div>
                     <h3 className="text-sm font-medium text-gray-500">Start Time</h3>
@@ -230,11 +234,17 @@ export default function JobDetailModal({ job, isOpen, onClose, onTriggerJob }) {
 
           <TabsContent value="logs">
             <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h3 className="text-sm font-medium">Container Logs</h3>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+              <div className="flex items-center justify-between gap-4">
+                <input
+                  type="text"
+                  placeholder="Search logs..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="text-sm border px-2 py-1 rounded w-full focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={fetchLogs}
                   disabled={isLoadingLogs}
                 >
@@ -243,16 +253,14 @@ export default function JobDetailModal({ job, isOpen, onClose, onTriggerJob }) {
                   ) : (
                     <RefreshCw className="h-4 w-4 mr-1" />
                   )}
-                  Refresh Logs
+                  Refresh
                 </Button>
               </div>
-              
+
               {logsError ? (
                 <div className={`${isInfoMessage ? 'bg-blue-50 border-blue-200 text-blue-800' : 'bg-amber-50 border-amber-200 text-amber-800'} border p-4 rounded-md text-sm space-y-2`}>
                   <div className="flex items-start gap-2">
-                    <div className="shrink-0 mt-0.5">
-                      {isInfoMessage ? 'ℹ️' : '⚠️'}
-                    </div>
+                    <div className="shrink-0 mt-0.5">{isInfoMessage ? 'ℹ️' : '⚠️'}</div>
                     <div>
                       <p className="font-medium mb-1">
                         {isInfoMessage ? 'Log Information' : 'Log Availability'}
@@ -272,23 +280,20 @@ export default function JobDetailModal({ job, isOpen, onClose, onTriggerJob }) {
                   </div>
                 </div>
               ) : (
-                <ScrollArea className="h-[40vh] border rounded-md">
-                  <pre className="p-4 font-mono text-sm whitespace-pre-wrap">
-                    {isLoadingLogs ? (
-                      <div className="flex items-center justify-center h-full text-gray-500">
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        Loading logs...
-                      </div>
-                    ) : logs || "No logs available"}
-                  </pre>
-                </ScrollArea>
+<ScrollArea className="h-[40vh] border rounded-md">
+  <pre
+    className="p-4 font-mono text-sm whitespace-pre-wrap"
+    dangerouslySetInnerHTML={{ __html: highlightedLogs }}
+  />
+</ScrollArea>
+
               )}
             </div>
           </TabsContent>
         </Tabs>
 
         <DialogFooter className="flex justify-between items-center gap-2">
-          <Button variant="outline" onClick={() => onClose()}>
+          <Button variant="outline" onClick={onClose}>
             Close
           </Button>
           <Button
